@@ -1,0 +1,8 @@
+---
+applications:
+- name: APPNAME
+  memory: 1024m
+  instances: 1
+  path: PATH
+  health-check-type: process
+  env: 
