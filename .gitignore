@@ -1,4 +1,6 @@
 .idea/
+.DS_Store
+built-plugin/
 vendor/
 resources/
 target/
