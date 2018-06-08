@@ -15,7 +15,7 @@ for the tunnel and also communicate with other remote services.
 
 Build it:
 
-``bash
+```bash
 $ rm $GOPATH/bin/tunnel-boot
 $ cd $GOPATH/src/github.com/aclement/tunnel-boot
 $ ./build.sh
