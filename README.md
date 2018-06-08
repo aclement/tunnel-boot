@@ -13,7 +13,15 @@ for the tunnel and also communicate with other remote services.
 
 ## Installation
 
-Build it:
+If you want to install a release directly into your CF CLI, choose one of these:
+
+```
+cf install-plugin https://github.com/aclement/tunnel-boot/releases/download/0.0.1/tunnel-boot-darwin-amd64-0.0.1
+cf install-plugin https://github.com/aclement/tunnel-boot/releases/download/0.0.1/tunnel-boot-linux-386-0.0.1
+cf install-plugin https://github.com/aclement/tunnel-boot/releases/download/0.0.1/tunnel-boot-linux-amd64-0.0.1
+```
+
+You can build it yourself:
 
 ```bash
 $ rm $GOPATH/bin/tunnel-boot
