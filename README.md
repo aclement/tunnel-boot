@@ -14,6 +14,7 @@ for the tunnel and also communicate with other remote services.
 ## Installation
 
 Build it:
+
 ``bash
 $ rm $GOPATH/bin/tunnel-boot
 $ cd $GOPATH/src/github.com/aclement/tunnel-boot
@@ -21,6 +22,7 @@ $ ./build.sh
 ```
 
 To print the version number of the built plugin, run it as a stand-alone executable, for example:
+
 ```bash
 $ $GOPATH/bin/tunnel-boot
 This program is a plugin which expects to be installed into the cf CLI. It is not intended to be run stand-alone.
@@ -28,6 +30,7 @@ Plugin version: 0.0.1
 ```
 
 To install the plugin in the `cf` CLI, first build it and then issue:
+
 ```bash
 $ cf install-plugin -f $GOPATH/bin/tunnel-boot
 ```
