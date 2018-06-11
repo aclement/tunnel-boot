@@ -14,32 +14,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- package main
+package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
-	"github.com/go-cmd/cmd"
+	"os/signal"
+	"syscall"
 
-	"code.cloudfoundry.org/cli/plugin"
 	"code.cloudfoundry.org/cli/cf/flags"
+	"code.cloudfoundry.org/cli/plugin"
 
-	"github.com/aclement/tunnel-boot/pluginutil"
-	"github.com/aclement/tunnel-boot/format"
-	"github.com/aclement/tunnel-boot/cli"
-	"log"
 	"io/ioutil"
+	"log"
 	"strings"
 	"text/template"
 
-	"github.com/dynport/gossh"
-	"time"
-	"os/signal"
-	"syscall"
+	"github.com/aclement/tunnel-boot/cli"
+	"github.com/aclement/tunnel-boot/format"
+	"github.com/aclement/tunnel-boot/pluginutil"
+
 	"bytes"
-	//"golang.org/x/crypto/ssh"
+
+	"os/exec"
+
+	"github.com/dynport/gossh"
 )
 
 // Plugin version. Substitute "<major>.<minor>.<build>" at build time, e.g. using -ldflags='-X main.pluginVersion=1.2.3'
@@ -49,7 +51,7 @@ var pluginVersion = "invalid version - plugin was not built correctly"
 // be found in the "code.cloudfoundry.org/cli/plugin/plugin.go"
 type Plugin struct {
 	cliConnection plugin.CliConnection
-	deployer DeployerOps
+	deployer      DeployerOps
 }
 
 func MakeLogger(prefix string) gossh.Writer {
@@ -81,7 +83,7 @@ func (p *Plugin) Run(cliConnection plugin.CliConnection, args []string) {
 	case "push-tunnel-app":
 		cfApplicationName := getApplicationName(argsConsumer)
 		springApplicationName := getSpringApplicationName(argsConsumer)
-		fmt.Println("Pushing tunnel hosting application:",cfApplicationName)
+		fmt.Println("Pushing tunnel hosting application:", cfApplicationName)
 		tempDir := getTempDir()
 		shadowAppPath := unpackTunnelApplication(tempDir)
 		manifestPath := unpackManifestTemplateAndFillIn(tempDir, cfApplicationName, springApplicationName, flags["services"], shadowAppPath)
@@ -111,79 +113,61 @@ func (p *Plugin) Run(cliConnection plugin.CliConnection, args []string) {
 		code := p.deployer.GetSshCode()
 		guid := p.deployer.GetGuid(applicationName)
 
-		fmt.Println("The guid for the app is "+guid)
-		fmt.Println("The one time ssh code is "+code)
+		fmt.Println("The guid for the app is " + guid)
+		fmt.Println("The one time ssh code is " + code)
 
 		sigs := make(chan os.Signal, 1)
 
 		signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
-		fmt.Println("Connecting tunnel, command:\n  sshpass -p "+code+" ssh -N -p 2222 cf:"+guid+"/0@ssh.run.pivotal.io -R *:8080:localhost:"+localPort)
-		sshCmd := cmd.NewCmd("sshpass", "-p", code, "ssh", "-N", "-p", "2222", "cf:"+guid+"/0@ssh.run.pivotal.io", "-R", "*:8080:localhost:"+localPort)
-		statusChan := sshCmd.Start() // non blocking
+		_, err := exec.LookPath("sshpass")
+		if err != nil {
+			fmt.Printf("Unable to find sshpass, please install it and re-run or execute the following ssh command manually to start the tunnel\n")
+			fmt.Println("  ssh -N -p 2222 cf:" + guid + "/0@ssh.run.pivotal.io -R *:8080:localhost:" + localPort)
+			fmt.Printf("(supply the sshcode printed above, or create a new one via: cf ssh-code")
+			os.Exit(1)
+		}
 
-		stdoutLine := 0
-		stderrLine := 0
+		fmt.Println("Connecting tunnel, command:\n  sshpass -p " + code + " ssh -N -p 2222 cf:" + guid + "/0@ssh.run.pivotal.io -R *:8080:localhost:" + localPort)
+		sshCmd := exec.Command("sshpass", "-p", code, "ssh", "-N", "-p", "2222", "cf:"+guid+"/0@ssh.run.pivotal.io", "-R", "*:8080:localhost:"+localPort)
 
-		go func(c *cmd.Cmd) {
-			sig := <-sigs
-			fmt.Println(sig)
-			fmt.Println("Shutting down tunnels")
-			c.Stop()
-			status := c.Status()
-			fmt.Println("Tunnel process output:")
-			fmt.Println("output:\n"+strings.Join(status.Stdout,""))
-			fmt.Println("stderr:\n"+strings.Join(status.Stderr,""))
-		}(sshCmd)
+		stdoutIn, _ := sshCmd.StdoutPipe()
+		stderrIn, _ := sshCmd.StderrPipe()
 
-		// TODO this is a bit rough...
-		// To display periodic output:
-		ticker := time.NewTicker(5 * time.Second)
-		go func(c *cmd.Cmd) {
-			for range ticker.C {
-				status := c.Status()
-				//fmt.Println(len(status.Stdout))
-				//fmt.Println(x)
-				if (len(status.Stdout) - stdoutLine) != 0 {
-					for ;stdoutLine < len(status.Stdout);stdoutLine++ {
-						fmt.Println(status.Stdout[stdoutLine]);
-						//"output:\n>" + strings.Join(status.Stdout, "\n") + "<")
-					}
-				}
-				if (len(status.Stderr) - stderrLine) != 0 {
-					for ;stderrLine < len(status.Stderr);stderrLine++ {
-						fmt.Println(status.Stderr[stderrLine]);
-					}
-					fmt.Println("stderr:\n"+strings.Join(status.Stderr,""))
-				}
-				//n:= len(status.Stdout)
-				//
-				//fmt.Println("Lines :"+string(n))
-				//if n>0 {
-				//	fmt.Println(status.Stdout[n-1])
-				//}
-			}
-		}(sshCmd)
+		var stdoutBuf, stderrBuf bytes.Buffer
+		var errStdout, errStderr error
 
-		//go func() {
-		//	<-time.After(10*time.Second)
-		//	fmt.Println("killing....it")
-		//	sshCmd.Stop()
-		//}()
+		stdout := io.MultiWriter(os.Stdout, &stdoutBuf)
+		stderr := io.MultiWriter(os.Stderr, &stderrBuf)
 
-		fmt.Println("Tunnel active")
-		<-statusChan
-		fmt.Println("Tunnel shutdown")
-		status := sshCmd.Status()
-		fmt.Println("output:\n"+strings.Join(status.Stdout,""))
-		fmt.Println("stderr:\n"+strings.Join(status.Stderr,""))
+		err = sshCmd.Start()
+		if err != nil {
+			log.Fatalf("sshCmd.Start() failed with %s\n", err)
+		}
 
+		go func() {
+			_, errStdout = io.Copy(stdout, stdoutIn)
+		}()
+
+		go func() {
+			_, errStderr = io.Copy(stderr, stderrIn)
+		}()
+
+		err = sshCmd.Wait()
+		if err != nil {
+			log.Fatalf("sshCmd.Start() failed with '%s'\n", err)
+		}
+		if errStdout != nil || errStderr != nil {
+			log.Fatal("failed to capture stdout or stderr\n")
+		}
+		outStr, errStr := string(stdoutBuf.Bytes()), string(stderrBuf.Bytes())
+		fmt.Printf("\nout:\n%s\nerr:\n%s\n", outStr, errStr)
 	}
 }
 
 func (p *Plugin) GetMetadata() plugin.PluginMetadata {
 	return plugin.PluginMetadata{
-		Name: "tunnel-boot",
+		Name:    "tunnel-boot",
 		Version: pluginutil.ParsePluginVersion(pluginVersion, failInstallation),
 		MinCliVersion: plugin.VersionType{
 			Major: 6,
@@ -192,9 +176,9 @@ func (p *Plugin) GetMetadata() plugin.PluginMetadata {
 		},
 		Commands: []plugin.Command{
 			{
-				Name: "push-tunnel-app",
+				Name:     "push-tunnel-app",
 				HelpText: "Push an application to act as an ssh tunnel host",
-				Alias: "pta",
+				Alias:    "pta",
 				UsageDetails: plugin.Usage{
 					Usage: `   cf push-tunnel-app CF_APPLICATION_NAME SPRING_APPLICATION_NAME`,
 					// add a flag to indicate the spring app name (eureka) vs the cf app name
@@ -204,26 +188,26 @@ func (p *Plugin) GetMetadata() plugin.PluginMetadata {
 				},
 			},
 			{
-				Name: "get-local-env",
+				Name:     "get-local-env",
 				HelpText: "Retrieve environment vars to specify for local app launching",
-				Alias: "gle",
+				Alias:    "gle",
 				UsageDetails: plugin.Usage{
 					Usage: `   cf get-local-env APPLICATION_NAME`,
-					Options: map[string]string {
-						"--create-eclipse-launch-config": "Produce a .launch file suitable for eclipse",
-						"--project <ideProjectName>": "for eclipse config creation, this is the eclipse project name",
+					Options: map[string]string{
+						"--create-eclipse-launch-config":      "Produce a .launch file suitable for eclipse",
+						"--project <ideProjectName>":          "for eclipse config creation, this is the eclipse project name",
 						"--application-main <fqAppClassName>": "for eclipse config creation, the application main class",
-						"--port <nnnn>": "for eclipse config creation, the local port number being tunneled to",
-						"--target-dir <folder>": "for eclipse config creation, target directory in which to create .launch file",
+						"--port <nnnn>":                       "for eclipse config creation, the local port number being tunneled to",
+						"--target-dir <folder>":               "for eclipse config creation, target directory in which to create .launch file",
 					},
 				},
 			},
 			{
-				Name: "start-tunnel",
+				Name:     "start-tunnel",
 				HelpText: "Create the ssh tunnel to connect a local port to the CF application",
-				Alias: "cpt",
+				Alias:    "stun",
 				UsageDetails: plugin.Usage{
-					Usage: `   cf start-tunnel APPLICATION_NAME LOCAL_PORT`,
+					Usage: `   cf start-tunnel CF_APPLICATION_NAME LOCAL_PORT`,
 				},
 			},
 		},
@@ -252,7 +236,7 @@ func diagnoseWithHelp(message string, command string) {
 }
 
 func getTempDir() string {
-	tempDir, err := ioutil.TempDir("","tunnel-boot")
+	tempDir, err := ioutil.TempDir("", "tunnel-boot")
 	if err != nil {
 		format.Diagnose(string(err.Error()), os.Stderr, func() {
 			os.Exit(1)
@@ -279,7 +263,7 @@ func unpackTunnelApplication(tempDir string) string {
 			os.Exit(1)
 		})
 	}
-	fmt.Println("Unpacked tunnel application to",shadowAppFile)
+	fmt.Println("Unpacked tunnel application to", shadowAppFile)
 	return shadowAppFile
 }
 
@@ -320,25 +304,25 @@ const eclipseLaunchConfigTemplate = `<?xml version="1.0" encoding="UTF-8" standa
 // <stringAttribute key="spring.boot.prop.spring.profiles.active:2" value="1cloud"/>
 
 type LaunchConfigInfo struct {
-	ProjectName string
+	ProjectName  string
 	AppMainClass string
-	ExtraProps map[string]string
-	EnvVars map[string]string
+	ExtraProps   map[string]string
+	EnvVars      map[string]string
 }
 
 func quote(value string) string {
-	return strings.Replace(value, "\"","&quot;",-1)
+	return strings.Replace(value, "\"", "&quot;", -1)
 }
 
 func produceEclipseLaunchConfiguration(targetDir string, projectName string, applicationMain string, port string, envVars map[string]string) {
 
 	extraProps := make(map[string]string)
-	extraProps["spring.boot.prop.eureka.client.register-with-eureka:0"]="false"
-	extraProps["spring.boot.prop.server.port:1"]=port
-	extraProps["spring.boot.prop.spring.profiles.active:2"]="cloud"
+	extraProps["spring.boot.prop.eureka.client.register-with-eureka:0"] = "false"
+	extraProps["spring.boot.prop.server.port:1"] = port
+	extraProps["spring.boot.prop.spring.profiles.active:2"] = "cloud"
 
 	funcs := template.FuncMap{"quote": quote}
-	launchConfigInfo := LaunchConfigInfo{projectName,applicationMain, extraProps, envVars}
+	launchConfigInfo := LaunchConfigInfo{projectName, applicationMain, extraProps, envVars}
 	scriptBuf := &bytes.Buffer{}
 	parsedTemplate := template.Must(template.New("").Funcs(funcs).Parse(eclipseLaunchConfigTemplate))
 	err := parsedTemplate.Execute(scriptBuf, launchConfigInfo)
@@ -382,14 +366,14 @@ func processVars(varData []string) map[string]string {
 
 	var usefulDataAccumulator []string
 	vars := make(map[string]string)
-	for i :=0; i<len(varData); i++ {
+	for i := 0; i < len(varData); i++ {
 		line := varData[i]
-		if strings.HasPrefix(line,"}") {
-			varName := usefulDataAccumulator[0][2:strings.LastIndex(usefulDataAccumulator[0],"\"")]
+		if strings.HasPrefix(line, "}") {
+			varName := usefulDataAccumulator[0][2:strings.LastIndex(usefulDataAccumulator[0], "\"")]
 			varValue := "{"
 			for j := 1; j < len(usefulDataAccumulator); j++ {
 				varLine := usefulDataAccumulator[j]
-				varValue = varValue + strings.TrimSpace(varLine)//strings.Replace(strings.TrimSpace(varLine),"\"","\\\"",-1)
+				varValue = varValue + strings.TrimSpace(varLine) //strings.Replace(strings.TrimSpace(varLine),"\"","\\\"",-1)
 			}
 			vars[varName] = varValue
 			usefulDataAccumulator = nil
@@ -397,7 +381,7 @@ func processVars(varData []string) map[string]string {
 		if usefulDataAccumulator != nil {
 			usefulDataAccumulator = append(usefulDataAccumulator, line)
 		}
-		if strings.HasPrefix(line,"{") {
+		if strings.HasPrefix(line, "{") {
 			usefulDataAccumulator = make([]string, 0)
 		}
 	}
@@ -405,10 +389,10 @@ func processVars(varData []string) map[string]string {
 }
 
 func unpackManifestTemplateAndFillIn(tempDir string, cfApplicationName string, springApplicationName string, services string, packagedAppPath string) string {
-	data,_ := Asset("resources/manifest.yml.template")
+	data, _ := Asset("resources/manifest.yml.template")
 	manifestTemplateString := string(data)
 
-//	eureka.client.serviceUrl.defaultZone: SERVICE_REGISTRY_URL
+	//	eureka.client.serviceUrl.defaultZone: SERVICE_REGISTRY_URL
 	manifestTemplateString = strings.Replace(manifestTemplateString, "APPNAME", cfApplicationName, 1)
 	manifestTemplateString = strings.Replace(manifestTemplateString, "PATH", packagedAppPath, 1)
 	// What else the bash did:
@@ -428,13 +412,13 @@ func unpackManifestTemplateAndFillIn(tempDir string, cfApplicationName string, s
 
 	if len(services) != 0 {
 		manifestTemplateString += "  services:\n"
-		serviceList := strings.Split(services,",")
-		for i:=0;i<len(serviceList);i++ {
+		serviceList := strings.Split(services, ",")
+		for i := 0; i < len(serviceList); i++ {
 			manifestTemplateString += "    - " + serviceList[i] + "\n"
 		}
 	}
 
-	fmt.Println("Manifest to be used for deployment of tunnel application:\n",manifestTemplateString)
+	fmt.Println("Manifest to be used for deployment of tunnel application:\n", manifestTemplateString)
 	manifestFile := filepath.Join(tempDir, "manifest.yml")
 	ioutil.WriteFile(manifestFile, []byte(manifestTemplateString), 0644)
 	return manifestFile
@@ -467,18 +451,17 @@ func main() {
 	plugin.Start(&p)
 }
 
-
 func parseFlagsAndOptions(args []string) (map[string]string, []string, error) {
 	const flagServices = "services"
-	options :=  make(map[string]string)
+	options := make(map[string]string)
 	fc := flags.New()
-	fc.NewStringFlag(flagServices,"s","services")
-	fc.NewBoolFlag("set","set","set")
-	fc.NewBoolFlag("create-eclipse-launch-config","celc","create-eclipse-launch-config")
-	fc.NewIntFlag("port","port","port")
-	fc.NewStringFlag("target-dir","target-dir","target-dir")
-	fc.NewStringFlag("project","project","project")
-	fc.NewStringFlag("application-main","application-main","application-main")
+	fc.NewStringFlag(flagServices, "s", "services")
+	fc.NewBoolFlag("set", "set", "set")
+	fc.NewBoolFlag("create-eclipse-launch-config", "celc", "create-eclipse-launch-config")
+	fc.NewIntFlag("port", "port", "port")
+	fc.NewStringFlag("target-dir", "target-dir", "target-dir")
+	fc.NewStringFlag("project", "project", "project")
+	fc.NewStringFlag("application-main", "application-main", "application-main")
 	err := fc.Parse(args...)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Error parsing arguments: %s", err)

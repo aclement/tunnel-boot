@@ -1,7 +1,5 @@
 #!/bin/bash
 
-# call this with the version as first param (e.g. buildRelease.sh 0.0.1)
-
 function build() {
   local platform=$1
   local architecture=$2
@@ -21,7 +19,8 @@ function build() {
 }
 
 PLUGIN_NAME=tunnel-boot
-BUILD_VERSION=$1
+#BUILD_VERSION=$1
+BUILD_VERSION=`cat version`
 #"$(cat $VERSION_FILE)"
 ARCHIVE_DIR=built-plugin
 
