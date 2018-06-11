@@ -16,9 +16,11 @@ for the tunnel and also communicate with other remote services.
 If you want to install a release directly into your CF CLI, choose one of these:
 
 ```
-cf install-plugin https://github.com/aclement/tunnel-boot/releases/download/0.0.1/tunnel-boot-darwin-amd64-0.0.1
-cf install-plugin https://github.com/aclement/tunnel-boot/releases/download/0.0.1/tunnel-boot-linux-386-0.0.1
-cf install-plugin https://github.com/aclement/tunnel-boot/releases/download/0.0.1/tunnel-boot-linux-amd64-0.0.1
+cf install-plugin https://github.com/aclement/tunnel-boot/releases/download/0.0.2/tunnel-boot-darwin-amd64-0.0.2
+cf install-plugin https://github.com/aclement/tunnel-boot/releases/download/0.0.2/tunnel-boot-linux-386-0.0.2
+cf install-plugin https://github.com/aclement/tunnel-boot/releases/download/0.0.2/tunnel-boot-linux-amd64-0.0.2
+cf install-plugin https://github.com/aclement/tunnel-boot/releases/download/0.0.2/tunnel-boot-windows-386-0.0.2.exe
+cf install-plugin https://github.com/aclement/tunnel-boot/releases/download/0.0.2/tunnel-boot-windows-amd64-0.0.2.exe
 ```
 
 You can build it yourself:
@@ -34,7 +36,7 @@ To print the version number of the built plugin, run it as a stand-alone executa
 ```bash
 $ $GOPATH/bin/tunnel-boot
 This program is a plugin which expects to be installed into the cf CLI. It is not intended to be run stand-alone.
-Plugin version: 0.0.1
+Plugin version: 0.0.2
 ```
 
 To install the plugin in the `cf` CLI, first build it and then issue:
