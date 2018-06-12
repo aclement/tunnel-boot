@@ -16,11 +16,11 @@ for the tunnel and also communicate with other remote services.
 If you want to install a release directly into your CF CLI, choose one of these:
 
 ```
-cf install-plugin https://github.com/aclement/tunnel-boot/releases/download/0.0.2/tunnel-boot-darwin-amd64-0.0.2
-cf install-plugin https://github.com/aclement/tunnel-boot/releases/download/0.0.2/tunnel-boot-linux-386-0.0.2
-cf install-plugin https://github.com/aclement/tunnel-boot/releases/download/0.0.2/tunnel-boot-linux-amd64-0.0.2
-cf install-plugin https://github.com/aclement/tunnel-boot/releases/download/0.0.2/tunnel-boot-windows-386-0.0.2.exe
-cf install-plugin https://github.com/aclement/tunnel-boot/releases/download/0.0.2/tunnel-boot-windows-amd64-0.0.2.exe
+cf install-plugin https://github.com/aclement/tunnel-boot/releases/download/0.0.3/tunnel-boot-darwin-amd64-0.0.3
+cf install-plugin https://github.com/aclement/tunnel-boot/releases/download/0.0.3/tunnel-boot-linux-386-0.0.3
+cf install-plugin https://github.com/aclement/tunnel-boot/releases/download/0.0.3/tunnel-boot-linux-amd64-0.0.3
+cf install-plugin https://github.com/aclement/tunnel-boot/releases/download/0.0.3/tunnel-boot-windows-386-0.0.3.exe
+cf install-plugin https://github.com/aclement/tunnel-boot/releases/download/0.0.3/tunnel-boot-windows-amd64-0.0.3.exe
 ```
 
 You can build it yourself:
