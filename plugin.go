@@ -82,7 +82,10 @@ func (p *Plugin) Run(cliConnection plugin.CliConnection, args []string) {
 
 	case "push-tunnel-app":
 		cfApplicationName := getApplicationName(argsConsumer)
-		springApplicationName := getSpringApplicationName(argsConsumer)
+		springApplicationName := flags["spring-app-name"]
+		if len(springApplicationName) == 0 {
+			springApplicationName = cfApplicationName
+		}
 		fmt.Println("Pushing tunnel hosting application:", cfApplicationName)
 		tempDir := getTempDir()
 		shadowAppPath := unpackTunnelApplication(tempDir)
@@ -180,10 +183,10 @@ func (p *Plugin) GetMetadata() plugin.PluginMetadata {
 				HelpText: "Push an application to act as an ssh tunnel host",
 				Alias:    "pta",
 				UsageDetails: plugin.Usage{
-					Usage: `   cf push-tunnel-app CF_APPLICATION_NAME SPRING_APPLICATION_NAME`,
-					// add a flag to indicate the spring app name (eureka) vs the cf app name
+					Usage: `   cf push-tunnel-app CF_APPLICATION_NAME`,
 					Options: map[string]string{
 						"--services/--s <servicesList>": "comma separated list of services to bind to",
+						"--spring-app-name <appName>":   "spring application name used when registering with service registry",
 					},
 				},
 			},
@@ -455,11 +458,13 @@ func parseFlagsAndOptions(args []string) (map[string]string, []string, error) {
 	const flagServices = "services"
 	options := make(map[string]string)
 	fc := flags.New()
+	// TODO yes this means all commands allow all options, needs a bunch of work doing
 	fc.NewStringFlag(flagServices, "s", "services")
 	fc.NewBoolFlag("set", "set", "set")
 	fc.NewBoolFlag("create-eclipse-launch-config", "celc", "create-eclipse-launch-config")
 	fc.NewIntFlag("port", "port", "port")
 	fc.NewStringFlag("target-dir", "target-dir", "target-dir")
+	fc.NewStringFlag("spring-app-name", "spring-app-name", "spring-app-name")
 	fc.NewStringFlag("project", "project", "project")
 	fc.NewStringFlag("application-main", "application-main", "application-main")
 	err := fc.Parse(args...)
@@ -482,6 +487,9 @@ func parseFlagsAndOptions(args []string) (map[string]string, []string, error) {
 	}
 	if fc.IsSet("application-main") {
 		options["application-main"] = fc.String("application-main")
+	}
+	if fc.IsSet("spring-app-name") {
+		options["spring-app-name"] = fc.String("spring-app-name")
 	}
 	if fc.IsSet("set") {
 		options["set"] = "true"

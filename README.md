@@ -81,20 +81,23 @@ applications:
 So the first CLI command to be run is of the form:
 
 ```
-cf push-tunnel-app CF_APP_NAME SPRING_APPLICATION_NAME [--services list_of_services]
+cf push-tunnel-app CF_APP_NAME --spring-app-name spring_application_name [--services list_of_services]
 ```
 
 In our case:
 
 ```
-cf push-tunnel-app fortune-service-tunnel fortune-service --services fortunes-db,fortunes-config-server,fortunes-service-registry
+cf push-tunnel-app fortune-service-tunnel --spring-app-name fortune-service --services fortunes-db,fortunes-config-server,fortunes-service-registry
 ```
 
 This means push a cf app called fortune-service-tunnel with spring application name fortune-service that
 should be bound to the database, config-server and service-registry services.
 The spring application name is important if binding to a service registry since that is the name that
-will be used for registration. Anyone looking up
-that name in the registry will find the tunnel app and potential send traffic to it
+will be used for registration. Anyone looking up that name in the registry will find the tunnel app
+and potential send traffic to it. 
+
+NOTE: If you are not binding to a service registry you can just use the simple
+form that only supplies the CF_APP_NAME.
 
 TODOs around this...
 - enable the command to take a manifest as input for discovering configuration data
