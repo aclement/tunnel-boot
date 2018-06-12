@@ -58,6 +58,26 @@ There are three commands to run in order to get up and running. Once run you can
 there is only a need to re-run these commands if something changes about your setup (the kinds of
 event requiring this are indicated below).
 
+Below there is a more detailed walk through of using the commands, here is the fastest thing to try:
+
+### Quick start:
+
+- Push something to CF to act as a tunnel host (CF application name is foobar here):
+
+```cf push-tunnel-app FOOBAR```
+
+- Start a tunnel from that app to a local port (in this case port 8888):
+
+```cf start-tunnel FOOBAR 8888```
+
+- Start your local app on 8888
+
+That's it!  Now accessing foobar.cfapps.io will trigger your local application.
+
+
+
+### More detailed guide involving multiple services:
+
 ### STEP 1:
 
 First you want to push an app to CF that will host the ssh tunnels. Note: this app
