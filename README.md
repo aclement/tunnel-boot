@@ -54,8 +54,9 @@ $ cf uninstall-plugin tunnel-boot
 
 ## Usage:
 
-There are three commands to run in order to get up and running. Once run you can just develop your app,
-there is only a need to re-run these commands if something changes about your setup (the kinds of
+The plugin provides three commands. Only two are required for a very basic scenario, the third one
+comes into play when using other CF services.  Once the commands have been run you are free to develop
+your app, it is not necessary to re-run the commands unless something more serious changes (the kinds of
 event requiring this are indicated below).
 
 Below there is a more detailed walk through of using the commands, here is the fastest thing to try:
