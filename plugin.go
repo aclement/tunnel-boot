@@ -123,13 +123,13 @@ func (p *Plugin) Run(cliConnection plugin.CliConnection, args []string) {
 		_, err := exec.LookPath("sshpass")
 		if err != nil {
 			fmt.Printf("Unable to find sshpass, please install it and re-run or execute the following ssh command manually to start the tunnel\n")
-			fmt.Println("  ssh -N -p 2222 cf:" + guid + "/0@ssh.run.pivotal.io -R *:8080:localhost:" + localPort)
+			fmt.Println("  ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -N -p 2222 cf:" + guid + "/0@ssh.run.pivotal.io -R *:8080:localhost:" + localPort)
 			fmt.Printf("(supply the sshcode printed above, or create a new one via: cf ssh-code")
 			os.Exit(1)
 		}
 
-		fmt.Println("Connecting tunnel, command:\n  sshpass -p " + code + " ssh -N -p 2222 cf:" + guid + "/0@ssh.run.pivotal.io -R *:8080:localhost:" + localPort)
-		sshCmd := exec.Command("sshpass", "-p", code, "ssh", "-N", "-p", "2222", "cf:"+guid+"/0@ssh.run.pivotal.io", "-R", "*:8080:localhost:"+localPort)
+		fmt.Println("Connecting tunnel, command:\n  sshpass -p " + code + " ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -N -p 2222 cf:" + guid + "/0@ssh.run.pivotal.io -R *:8080:localhost:" + localPort)
+		sshCmd := exec.Command("sshpass", "-p", code, "ssh", "-o", "UserKnownHostsFile=/dev/null", "-o", "StrictHostKeyChecking=no", "-N", "-p", "2222", "cf:"+guid+"/0@ssh.run.pivotal.io", "-R", "*:8080:localhost:"+localPort)
 
 		stdoutIn, _ := sshCmd.StdoutPipe()
 		stderrIn, _ := sshCmd.StderrPipe()
