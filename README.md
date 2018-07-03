@@ -108,7 +108,7 @@ cf push-tunnel-app CF_APP_NAME --spring-app-name spring_application_name [--serv
 In our case:
 
 ```
-cf push-tunnel-app fortune-service-tunnel --spring-app-name fortune-service --services fortunes-db,fortunes-config-server,fortunes-service-registry
+cf push-tunnel-app fortune-service-tunnel --spring-app-name fortunes --services fortunes-db,fortunes-config-server,fortunes-service-registry
 ```
 
 This means push a cf app called fortune-service-tunnel with spring application name fortune-service that
